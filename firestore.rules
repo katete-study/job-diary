@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 소유자: GitHub 로그인 + GitHub 숫자 ID가 KateteDeveloper(192939184)일 때만 true.
+    // 이 검사는 서버(Firestore)에서 수행되므로 프런트 코드를 우회해도 뚫리지 않는다.
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'github.com'
+        && request.auth.token.firebase.identities['github.com'][0] == '192939184';
+    }
+
+    // 공개: 공부 기록은 누구나 읽기, 소유자만 쓰기
+    match /study/{id} {
+      allow read: if true;
+      allow write: if isOwner();
+    }
+
+    // 비공개: 공고 / 이력서·자소서·포트폴리오·Claude 노트 / 할 일 은 소유자만
+    match /jobs/{id}  { allow read, write: if isOwner(); }
+    match /docs/{id}  { allow read, write: if isOwner(); }
+    match /todos/{id} { allow read, write: if isOwner(); }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
