@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Empty, Icon, Markdown, Modal } from '../components/ui'
+import { Empty, Icon, Markdown, Modal, PageHead } from '../components/ui'
 import { useAuth } from '../lib/auth'
 import { useCollection, useCrud } from '../lib/store'
 import type { StudyCategory, StudyEntry } from '../lib/types'
@@ -34,16 +34,13 @@ export default function Study() {
 
   return (
     <div className="stack">
-      <div className="row between wrap">
-        <h1>
-          <Icon name="study" size={40} /> 공부 기록
-        </h1>
-        {isOwner && (
-          <button className="btn primary" onClick={() => setEditing(blank())}>
+      <PageHead icon="study" title="공부 기록" sub="누구나 볼 수 있는 공부 기록이에요">
+          {isOwner && (
+            <button className="btn primary" onClick={() => setEditing(blank())}>
             + 기록 추가
           </button>
-        )}
-      </div>
+          )}
+        </PageHead>
 
       <div className="chips">
         <button className={`chip ${filter === 'all' ? 'on' : ''}`} onClick={() => setFilter('all')}>

@@ -4,3 +4,6 @@ dist
 .env.local
 .firebase
 *.log
+
+# 개인 취업 데이터(공고·자소서)는 절대 커밋하지 않는다 — 로그인 후 앱의 "백업 불러오기"로만 Firestore에 넣는다
+seed/private/

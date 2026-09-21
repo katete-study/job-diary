@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { collection, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore'
+import { useAuth } from './auth'
 import { db, hasFirebase } from './firebase'
+import { SAMPLE } from './sample'
 import type { CollectionName, Entity } from './types'
 
 const LOCAL_PREFIX = 'jd:'
@@ -22,13 +24,18 @@ function writeLocal<T>(name: CollectionName, items: T[]) {
 /**
  * 컬렉션을 구독한다. Firebase 설정이 없으면 localStorage를 사용한다.
  * @param name 컬렉션 이름
- * @param enabled false면 구독하지 않는다 (비공개 컬렉션은 소유자일 때만 구독)
+ * @param enabled false면 구독하지 않는다
+ *
+ * 비공개 컬렉션(jobs/docs/todos)은 소유자가 아니면 구독하지 않고, 블러 화면용 가짜 샘플을 돌려준다.
  */
 export function useCollection<T extends Entity>(name: CollectionName, enabled = true) {
+  const { isOwner, ready: authReady } = useAuth()
+  const locked = name !== 'study' && !isOwner
   const [items, setItems] = useState<T[]>([])
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
+    if (locked || !authReady) return
     if (!enabled) {
       setItems([])
       setReady(false)
@@ -57,9 +64,10 @@ export function useCollection<T extends Entity>(name: CollectionName, enabled = 
     return () => {
       listeners.get(name)?.delete(load)
     }
-  }, [name, enabled])
+  }, [name, enabled, locked, authReady])
 
-  return { items, ready }
+  if (locked) return { items: SAMPLE[name as Exclude<CollectionName, 'study'>] as unknown as T[], ready: true, locked }
+  return { items, ready, locked }
 }
 
 type NewOrExisting<T extends Entity> = Omit<T, 'createdAt' | 'updatedAt'> & Partial<Pick<Entity, 'createdAt' | 'updatedAt'>>

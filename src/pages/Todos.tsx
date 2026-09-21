@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Empty, Icon, PrivateGate } from '../components/ui'
+import { Empty, PageHead, PrivateGate } from '../components/ui'
 import { useCollection, useCrud } from '../lib/store'
 import type { Todo } from '../lib/types'
 import { ddayLabel, uid } from '../lib/util'
@@ -14,9 +14,7 @@ function TodosInner() {
 
   return (
     <div className="stack">
-      <h1>
-        <Icon name="todo" size={40} /> 할 일 목록
-      </h1>
+      <PageHead icon="todo" title="할 일" sub="시험 · 자소서 · 지원 준비 체크리스트" />
       <form
         className="card row wrap"
         onSubmit={async (e) => {

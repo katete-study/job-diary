@@ -47,11 +47,28 @@ export const SOURCE_LABEL: Record<JobSource, string> = {
 }
 
 export const STATUS_LABEL: Record<JobStatus, string> = {
-  watching: '관심',
-  document: '서류 심사',
+  considering: '고려 중',
+  planned: '지원 예정',
+  writing: '작성 중',
+  submitted: '제출 완료',
   interview: '면접',
   offer: '합격',
   rejected: '불합격',
+  hold: '보류',
+  switched: '전환됨',
+}
+
+/** 상태 뱃지 색상 톤 (CSS .pill.<tone>) */
+export const STATUS_TONE: Record<JobStatus, string> = {
+  considering: 'muted',
+  planned: 'blue',
+  writing: 'violet',
+  submitted: 'green',
+  interview: 'amber',
+  offer: 'green',
+  rejected: 'red',
+  hold: 'muted',
+  switched: 'muted',
 }
 
 export const CATEGORY_LABEL: Record<StudyCategory, string> = {

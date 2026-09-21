@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react'
-import { Icon, PrivateGate } from '../components/ui'
+import { PageHead, PrivateGate } from '../components/ui'
 import { useCollection } from '../lib/store'
 import type { Job, Todo } from '../lib/types'
 import { toDateStr, today } from '../lib/util'
 
 interface CalEvent {
-  kind: 'deadline' | 'interview' | 'todo'
+  kind: 'deadline' | 'interview' | 'event' | 'todo'
   label: string
   done?: boolean
 }
 
-const KIND_STYLE: Record<CalEvent['kind'], string> = { deadline: 'ev-deadline', interview: 'ev-interview', todo: 'ev-todo' }
-const KIND_NAME: Record<CalEvent['kind'], string> = { deadline: '마감', interview: '면접', todo: '할 일' }
+const KIND_STYLE: Record<CalEvent['kind'], string> = { deadline: 'ev-deadline', interview: 'ev-interview', event: 'ev-event', todo: 'ev-todo' }
+const KIND_NAME: Record<CalEvent['kind'], string> = { deadline: '마감', interview: '면접', event: '접수·통보', todo: '할 일' }
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 
 function CalendarInner() {
@@ -32,6 +32,7 @@ function CalendarInner() {
     jobs.forEach((j) => {
       add(j.deadline, { kind: 'deadline', label: `${j.company} 마감${j.applied ? ' ✓' : ''}`, done: j.applied })
       add(j.interviewAt, { kind: 'interview', label: `${j.company} 면접` })
+      add(j.eventDate, { kind: 'event', label: `${j.company} ${j.status === 'rejected' ? '결과 통보' : '접수'}` })
     })
     todos.forEach((t) => add(t.due, { kind: 'todo', label: t.text, done: t.done }))
     return m
@@ -48,11 +49,7 @@ function CalendarInner() {
 
   return (
     <div className="stack">
-      <div className="row between wrap">
-        <h1>
-          <Icon name="interview" size={40} /> 캘린더
-        </h1>
-        <div className="row">
+      <PageHead icon="interview" title="캘린더" sub="마감 · 면접 · 접수 · 할 일을 한눈에">
           <button className="btn" onClick={() => move(-1)} aria-label="이전 달">
             ◀
           </button>
@@ -72,8 +69,7 @@ function CalendarInner() {
           >
             오늘
           </button>
-        </div>
-      </div>
+        </PageHead>
 
       <div className="legend">
         {(Object.keys(KIND_NAME) as CalEvent['kind'][]).map((k) => (

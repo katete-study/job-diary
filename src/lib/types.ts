@@ -22,7 +22,8 @@ export interface StudyEntry extends Entity {
 
 export type JobSource = 'saramin' | 'jobkorea' | 'wanted' | 'other'
 
-export type JobStatus = 'watching' | 'document' | 'interview' | 'offer' | 'rejected'
+/** 고려 중 → 지원 예정 → 작성 중 → 제출 완료 → 면접 → 합격/불합격, 그 외 보류·다른 공고로 전환 */
+export type JobStatus = 'considering' | 'planned' | 'writing' | 'submitted' | 'interview' | 'offer' | 'rejected' | 'hold' | 'switched'
 
 /** 채용 공고 (비공개) */
 export interface Job extends Entity {
@@ -34,6 +35,8 @@ export interface Job extends Entity {
   deadline: string
   /** 면접일 YYYY-MM-DD, 없으면 빈 문자열 */
   interviewAt: string
+  /** 접수·결과 통보일 YYYY-MM-DD, 없으면 빈 문자열 */
+  eventDate: string
   status: JobStatus
   /** 실제로 지원했는지 (on/off) */
   applied: boolean

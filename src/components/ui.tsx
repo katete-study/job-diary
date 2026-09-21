@@ -69,21 +69,68 @@ export function Empty({ icon = 'rest', children }: { icon?: string; children: Re
   )
 }
 
-/** 소유자(KateteDeveloper)에게만 내용을 보여주는 래퍼 */
-export function PrivateGate({ children }: { children: ReactNode }) {
+/**
+ * 소유자(KateteDeveloper)가 아니면 내용을 블러 처리하고 잠금 안내를 올린다.
+ * 블러 아래에 보이는 건 sample.ts의 가짜 데이터일 뿐, 진짜 데이터는 서버가 내려주지 않는다.
+ */
+export function Locked({ children }: { children: ReactNode }) {
   const { isOwner, ready, user, signIn, demo } = useAuth()
-  if (!ready) return <Empty icon="rest">불러오는 중…</Empty>
   if (isOwner) return <>{children}</>
+  if (!ready) return <Empty icon="rest">불러오는 중…</Empty>
+  const inertProps = { inert: '' } as object
   return (
-    <div className="empty lock">
-      <Icon name="me" size={96} />
-      <h2>여기는 주인장만 볼 수 있어요 🔒</h2>
-      <p>{user ? '이 GitHub 계정은 열람 권한이 없어요. 공부 기록은 자유롭게 구경하세요!' : '취업 대시보드는 GitHub 로그인(KateteDeveloper)이 필요해요.'}</p>
-      {!user && (
-        <button className="btn primary" onClick={() => signIn()}>
-          <Icon name="github" size={20} /> {demo ? '데모 로그인' : 'GitHub로 로그인'}
-        </button>
-      )}
+    <div className="locked">
+      <div className="locked-blur" aria-hidden="true" {...inertProps}>
+        {children}
+      </div>
+      <div className="locked-msg card">
+        <Icon name="me" size={64} chip />
+        <h3>주인장만 볼 수 있어요 🔒</h3>
+        <p className="muted">{user ? '이 GitHub 계정은 열람 권한이 없어요.' : 'GitHub 로그인(KateteDeveloper)이 필요해요.'}</p>
+        {!user && (
+          <button className="btn primary" onClick={() => signIn()}>
+            <Icon name="github" size={20} /> {demo ? '데모 로그인' : 'GitHub로 로그인'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** 페이지 전체를 잠글 때 쓰는 별칭 */
+export const PrivateGate = Locked
+
+/** 상태 뱃지 */
+export function Pill({ tone, children }: { tone: string; children: ReactNode }) {
+  return <span className={`pill ${tone}`}>{children}</span>
+}
+
+/** 통계 카드 */
+export function StatCard({ icon, label, value, hint, tone = '' }: { icon: string; label: string; value: ReactNode; hint?: string; tone?: string }) {
+  return (
+    <div className={`stat-card ${tone}`}>
+      <Icon name={icon} size={34} chip />
+      <div>
+        <span className="stat-label">{label}</span>
+        <b className="stat-value">{value}</b>
+        {hint && <small className="muted">{hint}</small>}
+      </div>
+    </div>
+  )
+}
+
+/** 페이지 상단 제목 줄 */
+export function PageHead({ icon, title, sub, children }: { icon: string; title: string; sub?: string; children?: ReactNode }) {
+  return (
+    <div className="page-head">
+      <div className="row">
+        <Icon name={icon} size={30} chip />
+        <div>
+          <h1>{title}</h1>
+          {sub && <p className="muted">{sub}</p>}
+        </div>
+      </div>
+      <div className="row wrap">{children}</div>
     </div>
   )
 }

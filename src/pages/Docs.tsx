@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CopyButton, Empty, Icon, Markdown, Modal, PrivateGate } from '../components/ui'
+import { CopyButton, Empty, Icon, Markdown, Modal, PageHead, PrivateGate } from '../components/ui'
 import { useCollection, useCrud } from '../lib/store'
 import type { DocEntry, DocType, Job } from '../lib/types'
 import { buildClaudeContext, DOC_ICON, DOC_LABEL, downloadText, today, uid } from '../lib/util'
@@ -35,20 +35,14 @@ function DocsInner() {
 
   return (
     <div className="stack">
-      <div className="row between wrap">
-        <h1>
-          <Icon name="resume" size={40} /> 문서 보관함
-        </h1>
-        <div className="row wrap">
+      <PageHead icon="resume" title="문서 보관함" sub="이력서 · 자소서 · 포트폴리오 · Claude 참고 노트">
           <button className="btn" onClick={() => setShowContext(true)}>
             <Icon name="dev" size={20} /> Claude 컨텍스트 ({included})
           </button>
           <button className="btn primary" onClick={() => setEditing(blank(filter === 'all' ? 'claude' : filter))}>
             + 문서 추가
           </button>
-        </div>
-      </div>
-      <p className="muted">이력서·자소서·포트폴리오와 “내가 한 일” 노트를 마크다운으로 저장해 두면, 새 공고에 지원할 때 Claude에게 그대로 넘겨 줄 수 있어요.</p>
+        </PageHead>
 
       <div className="chips">
         <button className={`chip ${filter === 'all' ? 'on' : ''}`} onClick={() => setFilter('all')}>

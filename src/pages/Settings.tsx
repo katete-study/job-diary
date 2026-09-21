@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Icon, PrivateGate } from '../components/ui'
+import { PageHead, PrivateGate } from '../components/ui'
 import { useAuth } from '../lib/auth'
 import { hasFirebase, OWNER_GITHUB_ID } from '../lib/firebase'
 import { importAll, saveItem, useCollection } from '../lib/store'
@@ -14,9 +14,9 @@ async function seedDemo() {
     return toDateStr(d)
   }
   const jobs: Omit<Job, 'createdAt' | 'updatedAt'>[] = [
-    { id: uid(), url: 'https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=1', source: 'saramin', company: '당근', title: 'Android 개발자', deadline: day(2), interviewAt: '', status: 'watching', applied: false, favorite: true, note: 'Compose 경험 우대' },
-    { id: uid(), url: 'https://www.jobkorea.co.kr/Recruit/GI_Read/1', source: 'jobkorea', company: '토스', title: 'Android Developer', deadline: day(9), interviewAt: '', status: 'document', applied: true, favorite: false, note: '' },
-    { id: uid(), url: '', source: 'other', company: '네이버', title: 'Android 신입 공채', deadline: day(-3), interviewAt: day(5), status: 'interview', applied: true, favorite: true, note: '코딩테스트 통과' },
+    { id: uid(), url: 'https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=1', source: 'saramin', company: '당근', title: 'Android 개발자', deadline: day(2), interviewAt: '', eventDate: '', status: 'planned', applied: false, favorite: true, note: 'Compose 경험 우대' },
+    { id: uid(), url: 'https://www.jobkorea.co.kr/Recruit/GI_Read/1', source: 'jobkorea', company: '토스', title: 'Android Developer', deadline: day(9), interviewAt: '', eventDate: '', status: 'submitted', applied: true, favorite: false, note: '' },
+    { id: uid(), url: '', source: 'other', company: '네이버', title: 'Android 신입 공채', deadline: day(-3), interviewAt: day(5), eventDate: '', status: 'interview', applied: true, favorite: true, note: '코딩테스트 통과' },
   ]
   for (const j of jobs) await saveItem<Job>('jobs', j)
   const study: Omit<StudyEntry, 'createdAt' | 'updatedAt'>[] = [
@@ -50,9 +50,7 @@ function SettingsInner() {
 
   return (
     <div className="stack">
-      <h1>
-        <Icon name="settings" size={40} /> 설정
-      </h1>
+      <PageHead icon="settings" title="설정 · 백업" sub="계정 확인, 데이터 백업과 복원" />
 
       <section className="card">
         <h2>계정</h2>
