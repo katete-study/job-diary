@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { PageHead, PrivateGate } from '../components/ui'
 import { useAuth } from '../lib/auth'
 import { hasFirebase, OWNER_GITHUB_ID } from '../lib/firebase'
@@ -38,6 +38,7 @@ async function seedDemo() {
 function SettingsInner() {
   const { user } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [importMsg, setImportMsg] = useState('')
   const study = useCollection<StudyEntry>('study').items
   const jobs = useCollection<Job>('jobs').items
   const docs = useCollection<DocEntry>('docs').items
@@ -79,15 +80,17 @@ function SettingsInner() {
               const file = e.target.files?.[0]
               if (!file) return
               try {
-                await importAll(JSON.parse(await file.text()))
-                alert('복원했어요!')
+                const r = await importAll(JSON.parse(await file.text()))
+                const parts = Object.entries(r.saved).map(([k, n]) => `${k} ${n}`).join(' · ')
+                setImportMsg(r.failed ? `⚠️ 저장 ${parts} / 실패 ${r.failed}건 (${r.firstError})` : `✅ 저장 완료: ${parts}`)
               } catch {
-                alert('올바른 백업 파일이 아니에요.')
+                setImportMsg('⚠️ 올바른 백업 파일이 아니에요.')
               }
               e.target.value = ''
             }}
           />
         </div>
+        {importMsg && <p>{importMsg}</p>}
       </section>
 
       {!hasFirebase && (

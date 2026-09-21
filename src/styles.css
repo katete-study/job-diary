@@ -299,6 +299,10 @@ small {
   margin-bottom: 16px;
   font-size: 0.86rem;
 }
+.banner.error {
+  background: var(--hot-soft);
+  color: var(--hot);
+}
 .foot {
   display: flex;
   align-items: center;

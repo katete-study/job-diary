@@ -6,6 +6,24 @@ import { SAMPLE } from './sample'
 import type { CollectionName, Entity } from './types'
 
 const LOCAL_PREFIX = 'jd:'
+const errorListeners = new Set<(msg: string) => void>()
+
+/** 데이터 읽기/쓰기 오류를 화면(배너)에 띄우기 위한 전역 채널 */
+export function reportDataError(msg: string) {
+  errorListeners.forEach((fn) => fn(msg))
+}
+
+/** 마지막 데이터 오류 메시지를 구독한다 */
+export function useDataError() {
+  const [msg, setMsg] = useState('')
+  useEffect(() => {
+    errorListeners.add(setMsg)
+    return () => {
+      errorListeners.delete(setMsg)
+    }
+  }, [])
+  return { msg, clear: () => setMsg('') }
+}
 const listeners = new Map<CollectionName, Set<() => void>>()
 
 function readLocal<T>(name: CollectionName): T[] {
@@ -50,6 +68,7 @@ export function useCollection<T extends Entity>(name: CollectionName, enabled = 
         },
         (err) => {
           console.error(`[${name}] 구독 실패`, err)
+          reportDataError(`'${name}' 읽기 실패: ${err.code ?? err.message}`)
           setReady(true)
         },
       )
@@ -105,10 +124,28 @@ export function useCrud<T extends Entity>(name: CollectionName) {
   return { save, remove }
 }
 
-/** 백업 복원: 백업 JSON의 모든 컬렉션을 다시 저장한다 */
-export async function importAll(data: Partial<Record<CollectionName, Entity[]>>) {
+/** 백업 복원 결과 */
+export interface ImportResult {
+  saved: Record<string, number>
+  failed: number
+  firstError: string
+}
+
+/** 백업 복원: 백업 JSON의 모든 컬렉션을 다시 저장하고, 저장한 개수와 실패한 개수를 돌려준다 */
+export async function importAll(data: Partial<Record<CollectionName, Entity[]>>): Promise<ImportResult> {
   const names: CollectionName[] = ['study', 'jobs', 'docs', 'todos']
+  const result: ImportResult = { saved: {}, failed: 0, firstError: '' }
   for (const n of names) {
-    for (const item of data[n] ?? []) await saveItem(n, item)
+    result.saved[n] = 0
+    for (const item of data[n] ?? []) {
+      try {
+        await saveItem(n, item)
+        result.saved[n]++
+      } catch (e) {
+        result.failed++
+        if (!result.firstError) result.firstError = `${n}: ${(e as { code?: string }).code ?? (e as Error).message}`
+      }
+    }
   }
+  return result
 }

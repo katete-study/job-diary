@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import { useDataError } from '../lib/store'
 import { Icon } from './ui'
 
 type Theme = 'system' | 'light' | 'dark'
@@ -59,6 +60,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
 export default function Layout() {
   const { user, isOwner, signIn, signOut, demo } = useAuth()
   const { theme, cycle } = useTheme()
+  const dataError = useDataError()
 
   return (
     <div className="shell">
@@ -120,6 +122,14 @@ export default function Layout() {
         {demo && (
           <div className="banner">
             🧪 Firebase 설정이 없어 <b>로컬 데모 모드</b>(이 브라우저에만 저장)로 동작 중이에요.
+          </div>
+        )}
+        {dataError.msg && (
+          <div className="banner error" role="alert">
+            ⚠️ {dataError.msg}{' '}
+            <button className="btn sm" onClick={dataError.clear}>
+              닫기
+            </button>
           </div>
         )}
         <main>
