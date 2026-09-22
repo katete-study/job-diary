@@ -73,6 +73,8 @@ export interface Todo extends Entity {
   category: TodoCategory
   /** 문제/공고 등 참고 링크. 없으면 빈 문자열 */
   url: string
+  /** 핵심 개념/힌트 등 짧은 메모. 없으면 빈 문자열 */
+  note: string
 }
 
 /** PCCP/PCCE, 코딩테스트, 자격증 등 응시 일정 (비공개) */

@@ -51,7 +51,7 @@ const SAMPLE_DOCS: DocEntry[] = (['coverletter', 'claude', 'resume', 'portfolio'
   includeInContext: true,
 }))
 
-const SAMPLE_TODOS: Todo[] = [3, 5, 8, 12].map((n, i) => ({ ...base, id: `sample-todo-${i}`, text: '샘플 할 일', done: false, due: day(n), category: 'study', url: '' }))
+const SAMPLE_TODOS: Todo[] = [3, 5, 8, 12].map((n, i) => ({ ...base, id: `sample-todo-${i}`, text: '샘플 할 일', done: false, due: day(n), category: 'study', url: '', note: '' }))
 
 const SAMPLE_EXAMS: ExamEntry[] = [10, 26].map((n, i) => ({ ...base, id: `sample-exam-${i}`, title: '샘플 시험', date: day(n), note: '', url: '' }))
 

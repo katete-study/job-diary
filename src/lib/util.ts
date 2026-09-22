@@ -16,6 +16,74 @@ export function extractUrl(raw: string): { text: string; url: string } {
   return { text, url: m[0] }
 }
 
+export interface ParsedBulkTodo {
+  text: string
+  url: string
+  note: string
+}
+
+const NUMBERED_LINE_RE = /^\d+\s*번?[.)]/
+
+/**
+ * "여러 개 한번에 추가"에 붙여넣은 텍스트를 할 일 목록으로 바꾼다.
+ *
+ * - "1번.", "2." 처럼 번호로 시작하는 줄이 있으면: 번호 줄이 나올 때마다 새 할 일로 묶는다.
+ *   (ChatGPT/Gemini가 "1번. 제목 (Lv.1)\n\n* 핵심: ...\n* 링크: URL" 처럼 제목과 불릿 사이에
+ *   빈 줄을 넣어줘도, 다음 번호가 나오기 전까지는 같은 문제로 취급한다.) 제목 앞의 번호와 뒤의
+ *   "(...)" 는 지우고, "핵심:" 줄은 메모로, URL이 있는 줄은 링크로 넣는다.
+ * - 번호가 없으면: 한 줄 = 할 일 하나. 줄에 섞인 URL은 자동 분리. (기존 방식)
+ */
+export function parseBulkTodos(raw: string): ParsedBulkTodo[] {
+  const lines = raw.split('\n')
+  const numbered = lines.some((l) => NUMBERED_LINE_RE.test(l.trim()))
+
+  if (!numbered) {
+    return lines
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((line) => ({ ...extractUrl(line), note: '' }))
+  }
+
+  // 번호 줄이 나올 때마다 새 문단 시작 (그 전까지 쌓인 줄은 직전 문단에 포함)
+  const blocks: string[] = []
+  let current: string[] = []
+  for (const line of lines) {
+    if (NUMBERED_LINE_RE.test(line.trim()) && current.some((l) => l.trim())) {
+      blocks.push(current.join('\n'))
+      current = [line]
+    } else {
+      current.push(line)
+    }
+  }
+  if (current.some((l) => l.trim())) blocks.push(current.join('\n'))
+
+  return blocks.map((block) => {
+    let title = ''
+    let url = ''
+    let note = ''
+    for (const rawLine of block.split('\n')) {
+      const line = rawLine.trim().replace(/^[-*•]\s*/, '')
+      if (!line) continue
+      const urlMatch = line.match(URL_RE)
+      if (urlMatch) {
+        url = urlMatch[0]
+        continue
+      }
+      const noteMatch = line.match(/^핵심\s*[:：]\s*(.+)/)
+      if (noteMatch) {
+        note = noteMatch[1]
+        continue
+      }
+      if (!title) title = line
+    }
+    title = title
+      .replace(/^\d+\s*번?[.)]?\s*/, '')
+      .replace(/\s*\([^)]*\)\s*$/, '')
+      .trim()
+    return { text: title || '(제목 없음)', url, note }
+  })
+}
+
 /** 로컬 시간 기준 YYYY-MM-DD */
 export function toDateStr(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')

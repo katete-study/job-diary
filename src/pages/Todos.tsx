@@ -2,7 +2,7 @@ import { useState, type DragEvent } from 'react'
 import { Empty, Modal, PageHead, PrivateGate } from '../components/ui'
 import { useCollection, useCrud } from '../lib/store'
 import type { Job, StudyEntry, Todo, TodoCategory } from '../lib/types'
-import { ddayLabel, extractUrl, toDateStr, today, TODO_CATEGORY_LABEL, TODO_CATEGORY_TONE, uid } from '../lib/util'
+import { ddayLabel, extractUrl, parseBulkTodos, toDateStr, today, TODO_CATEGORY_LABEL, TODO_CATEGORY_TONE, uid } from '../lib/util'
 
 type View = 'week' | 'day' | 'list'
 
@@ -86,8 +86,14 @@ function TodoRow({ todo, showDue = false, compact = false, onToggle, onRemove, o
       >
         {compact ? '' : catLabel}
       </button>
-      <button type="button" className="ttext-btn" onClick={() => onOpenDetail(todo)} title={`${todo.text}${todo.url ? `\n${todo.url}` : ''}`}>
+      <button
+        type="button"
+        className="ttext-btn"
+        onClick={() => onOpenDetail(todo)}
+        title={[todo.text, todo.note, todo.url].filter(Boolean).join('\n')}
+      >
         <span className="ttext">{todo.text}</span>
+        {todo.note && <span className="tlinkdot">📝</span>}
         {todo.url && <span className="tlinkdot">🔗</span>}
       </button>
       {showDue && todo.due && <span className="dday">{ddayLabel(todo.due)}</span>}
@@ -114,6 +120,31 @@ function QuickAdd({ placeholder = '+ 할 일 추가', onAdd }: { placeholder?: s
         }
       }}
     />
+  )
+}
+
+const DUE_CHIP_LABELS = ['오늘', '내일', '모레', '3일 후', '4일 후', '5일 후', '6일 후', '7일 후']
+
+/**
+ * 할 일 기한을 "오늘 ~ 7일 후" 중에서만 고르게 하는 칩. 계획형이 아니라 먼 미래 날짜를 잡아두고
+ * 잊어버리는 걸 막기 위해, 달력 대신 이 범위로만 고르게 제한한다.
+ */
+function DueChips({ value, onChange }: { value: string; onChange: (date: string) => void }) {
+  const t0 = today()
+  return (
+    <div className="chips">
+      <button type="button" className={`chip ${value === '' ? 'on' : ''}`} onClick={() => onChange('')}>
+        기한 없음
+      </button>
+      {DUE_CHIP_LABELS.map((label, i) => {
+        const d = shift(t0, i)
+        return (
+          <button key={d} type="button" className={`chip ${value === d ? 'on' : ''}`} onClick={() => onChange(d)}>
+            {label} ({md(d)})
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -152,7 +183,7 @@ function TodosInner() {
   /** label 에 URL이 섞여 있으면(붙여넣기) 자동으로 분리해서 저장한다 */
   const add = (label: string, date: string, cat: TodoCategory = 'study') => {
     const { text: parsedText, url } = extractUrl(label)
-    save({ id: uid(), text: parsedText, done: false, due: date, category: cat, url })
+    save({ id: uid(), text: parsedText, done: false, due: date, category: cat, url, note: '' })
   }
   /**
    * "공부" 분류 할 일을 완료로 체크하면 공부 기록에 자동으로 기록을 남기고(직접 안 적어도 됨),
@@ -182,11 +213,15 @@ function TodosInner() {
     studyEntries.filter((s) => s.sourceTodoId === id).forEach((s) => removeStudy(s.id))
   }
 
-  /** 붙여넣은 여러 줄을 한 줄씩 같은 날짜/분류의 할 일로 만든다 (오늘 풀 문제 8개처럼 한 번에 등록할 때) */
+  /**
+   * 붙여넣은 텍스트를 같은 날짜·분류의 할 일 여러 개로 만든다 (오늘 풀 문제 8개처럼 한 번에 등록할 때).
+   * 한 줄짜리 목록이든, AI가 만들어 준 "1번. 제목\n\n* 핵심: ...\n* 링크: ..." 형식이든 알아서 나눈다.
+   */
   const addBulk = () => {
     if (!bulk) return
-    const lines = bulk.text.split('\n').map((l) => l.trim()).filter(Boolean)
-    lines.forEach((line) => add(line, bulk.date, bulk.category))
+    parseBulkTodos(bulk.text).forEach(({ text, url, note }) =>
+      save({ id: uid(), text, done: false, due: bulk.date, category: bulk.category, url, note }),
+    )
     setBulk(null)
   }
   const todosOn = (date: string) => items.filter((t) => t.due === date).sort((a, b) => Number(a.done) - Number(b.done) || a.createdAt - b.createdAt)
@@ -339,16 +374,18 @@ function TodosInner() {
               setDue('')
             }}
           >
-            <input className="grow" placeholder="예: 카카오 코딩테스트 풀어보기" value={text} onChange={(e) => setText(e.target.value)} />
-            <select value={category} onChange={(e) => setCategory(e.target.value as TodoCategory)} aria-label="분류">
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {TODO_CATEGORY_LABEL[c]}
-                </option>
-              ))}
-            </select>
-            <input type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label="기한" />
-            <button className="btn primary">추가</button>
+            <div className="row wrap grow">
+              <input className="grow" placeholder="예: 카카오 코딩테스트 풀어보기" value={text} onChange={(e) => setText(e.target.value)} />
+              <select value={category} onChange={(e) => setCategory(e.target.value as TodoCategory)} aria-label="분류">
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {TODO_CATEGORY_LABEL[c]}
+                  </option>
+                ))}
+              </select>
+              <button className="btn primary">추가</button>
+            </div>
+            <DueChips value={due} onChange={setDue} />
           </form>
 
           <div className="chips">
@@ -385,26 +422,26 @@ function TodosInner() {
             }}
           >
             <p className="muted small">
-              오늘 풀 문제 목록처럼 한 줄에 하나씩 붙여넣으면 전부 같은 날짜·분류의 할 일로 등록돼요. 줄 끝에 링크를 같이 붙여넣으면 자동으로 분리돼요.
+              한 줄에 하나씩 붙여넣으면 전부 같은 날짜·분류의 할 일로 등록돼요. Gemini/ChatGPT가 "1번. 제목 (Lv.1)" +
+              "핵심:" + "링크:" 형식으로 문단을 나눠 줬다면, 문단 사이 빈 줄을 그대로 두고 붙여넣으세요 — 문단 하나가
+              할 일 하나로 자동으로 묶이고, 핵심은 메모로, 링크는 링크로 들어가요.
             </p>
-            <div className="form-row">
-              <label>
-                날짜
-                <input type="date" value={bulk.date} onChange={(e) => setBulk({ ...bulk, date: e.target.value })} />
-              </label>
-              <label>
-                분류
-                <select value={bulk.category} onChange={(e) => setBulk({ ...bulk, category: e.target.value as TodoCategory })}>
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {TODO_CATEGORY_LABEL[c]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
             <label>
-              할 일 목록 (한 줄에 하나)
+              분류
+              <select value={bulk.category} onChange={(e) => setBulk({ ...bulk, category: e.target.value as TodoCategory })}>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {TODO_CATEGORY_LABEL[c]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              날짜
+              <DueChips value={bulk.date} onChange={(d) => setBulk({ ...bulk, date: d })} />
+            </label>
+            <label>
+              할 일 목록
               <textarea
                 rows={10}
                 autoFocus
@@ -417,9 +454,7 @@ function TodosInner() {
               <button type="button" className="btn" onClick={() => setBulk(null)}>
                 취소
               </button>
-              <button className="btn primary">
-                {bulk.text.split('\n').filter((l) => l.trim()).length}개 추가
-              </button>
+              <button className="btn primary">{parseBulkTodos(bulk.text).length}개 추가</button>
             </div>
           </form>
         </Modal>
@@ -441,22 +476,28 @@ function TodosInner() {
               제목
               <input value={detail.text} onChange={(e) => setDetail({ ...detail, text: e.target.value })} required autoFocus />
             </label>
-            <div className="form-row">
-              <label>
-                분류
-                <select value={detail.category} onChange={(e) => setDetail({ ...detail, category: e.target.value as TodoCategory })}>
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {TODO_CATEGORY_LABEL[c]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                기한
-                <input type="date" value={detail.due} onChange={(e) => setDetail({ ...detail, due: e.target.value })} />
-              </label>
-            </div>
+            <label>
+              분류
+              <select value={detail.category} onChange={(e) => setDetail({ ...detail, category: e.target.value as TodoCategory })}>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {TODO_CATEGORY_LABEL[c]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              기한
+              <DueChips value={detail.due} onChange={(d) => setDetail({ ...detail, due: d })} />
+            </label>
+            <label>
+              메모 (핵심 개념·힌트)
+              <input
+                placeholder="예: HashSet으로 중복 제거"
+                value={detail.note}
+                onChange={(e) => setDetail({ ...detail, note: e.target.value })}
+              />
+            </label>
             <label>
               링크 (URL)
               <input
