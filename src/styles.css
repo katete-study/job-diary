@@ -104,6 +104,15 @@ h3 {
   font-size: 1.05rem;
   margin: 6px 0 2px;
 }
+.day-head {
+  font-size: 0.92rem;
+  font-family: inherit;
+  font-weight: 700;
+  color: var(--muted);
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
 p {
   margin: 2px 0;
 }

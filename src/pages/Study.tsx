@@ -7,6 +7,25 @@ import type { StudyCategory, StudyEntry } from '../lib/types'
 import { CATEGORY_ICON, CATEGORY_LABEL, today, uid } from '../lib/util'
 
 const CATEGORIES = Object.keys(CATEGORY_LABEL) as StudyCategory[]
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
+
+/** "9월 22일 (월)" 형식의 날짜 그룹 제목. 오늘이면 앞에 "오늘 · "를 붙인다. */
+function dateHeading(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  const head = `${m}월 ${d}일 (${WEEKDAYS[dt.getDay()]})`
+  return dateStr === today() ? `오늘 · ${head}` : head
+}
+
+/** 날짜순으로 이미 정렬된 목록을 날짜별로 묶는다 (Map은 삽입 순서를 유지하므로 순서가 그대로 보존된다) */
+function groupByDate(list: StudyEntry[]): [string, StudyEntry[]][] {
+  const map = new Map<string, StudyEntry[]>()
+  for (const s of list) {
+    if (!map.has(s.date)) map.set(s.date, [])
+    map.get(s.date)!.push(s)
+  }
+  return [...map.entries()]
+}
 
 function blank(): Omit<StudyEntry, 'createdAt' | 'updatedAt'> {
   return { id: uid(), date: today(), category: 'study', title: '', content: '', tags: [], sourceTodoId: '' }
@@ -58,24 +77,32 @@ export default function Study() {
       ) : shown.length === 0 ? (
         <Empty icon="rest">아직 기록이 없어요.</Empty>
       ) : (
-        <div className="grid cards">
-          {shown.map((s) => (
-            <article key={s.id} className="card clickable" onClick={() => setOpenId(s.id)}>
-              <div className="row">
-                <Icon name={CATEGORY_ICON[s.category]} size={30} chip />
-                <span className="badge">{CATEGORY_LABEL[s.category]}</span>
-                <span className="muted small push">{s.date}</span>
-              </div>
-              <h3>{s.title}</h3>
-              <p className="muted clamp">{s.content.replace(/[#*`>\-\[\]]/g, '').slice(0, 140)}</p>
-              <div className="tags">
-                {s.tags.map((t) => (
-                  <span key={t} className="tag">
-                    #{t}
-                  </span>
+        <div className="stack">
+          {groupByDate(shown).map(([date, entries]) => (
+            <section key={date}>
+              <h3 className="day-head">
+                {dateHeading(date)} <span className="muted small">· {entries.length}개</span>
+              </h3>
+              <div className="grid cards">
+                {entries.map((s) => (
+                  <article key={s.id} className="card clickable" onClick={() => setOpenId(s.id)}>
+                    <div className="row">
+                      <Icon name={CATEGORY_ICON[s.category]} size={30} chip />
+                      <span className="badge">{CATEGORY_LABEL[s.category]}</span>
+                    </div>
+                    <h3>{s.title}</h3>
+                    <p className="muted clamp">{s.content.replace(/[#*`>\-\[\]]/g, '').slice(0, 140)}</p>
+                    <div className="tags">
+                      {s.tags.map((t) => (
+                        <span key={t} className="tag">
+                          #{t}
+                        </span>
+                      ))}
+                    </div>
+                  </article>
                 ))}
               </div>
-            </article>
+            </section>
           ))}
         </div>
       )}
