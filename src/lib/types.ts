@@ -5,7 +5,7 @@ export interface Entity {
   updatedAt: number
 }
 
-export type CollectionName = 'study' | 'jobs' | 'docs' | 'todos'
+export type CollectionName = 'study' | 'jobs' | 'docs' | 'todos' | 'exams'
 
 export type StudyCategory = 'study' | 'devstudy' | 'project' | 'stack'
 
@@ -70,6 +70,16 @@ export interface Todo extends Entity {
   due: string
   category: TodoCategory
   /** 문제/공고 등 참고 링크. 없으면 빈 문자열 */
+  url: string
+}
+
+/** PCCP/PCCE, 코딩테스트, 자격증 등 응시 일정 (비공개) */
+export interface ExamEntry extends Entity {
+  title: string
+  /** YYYY-MM-DD */
+  date: string
+  note: string
+  /** 접수/공식 페이지 등 참고 링크. 없으면 빈 문자열 */
   url: string
 }
 

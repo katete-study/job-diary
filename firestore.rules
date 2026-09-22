@@ -16,10 +16,11 @@ service cloud.firestore {
       allow write: if isOwner();
     }
 
-    // 비공개: 공고 / 이력서·자소서·포트폴리오·Claude 노트 / 할 일 은 소유자만
+    // 비공개: 공고 / 이력서·자소서·포트폴리오·Claude 노트 / 할 일 / 시험 일정 은 소유자만
     match /jobs/{id}  { allow read, write: if isOwner(); }
     match /docs/{id}  { allow read, write: if isOwner(); }
     match /todos/{id} { allow read, write: if isOwner(); }
+    match /exams/{id} { allow read, write: if isOwner(); }
 
     match /{document=**} {
       allow read, write: if false;

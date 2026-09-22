@@ -3,7 +3,7 @@ import { PageHead, PrivateGate } from '../components/ui'
 import { useAuth } from '../lib/auth'
 import { hasFirebase, OWNER_GITHUB_ID } from '../lib/firebase'
 import { importAll, saveItem, useCollection } from '../lib/store'
-import type { CollectionName, DocEntry, Entity, Job, StudyEntry, Todo } from '../lib/types'
+import type { CollectionName, DocEntry, Entity, ExamEntry, Job, StudyEntry, Todo } from '../lib/types'
 import { downloadText, toDateStr, uid } from '../lib/util'
 
 /** 로컬 데모 모드에서 화면을 확인하기 위한 샘플 데이터 */
@@ -41,6 +41,7 @@ async function seedDemo() {
     category: 'study',
     url: 'https://school.programmers.co.kr/learn/courses/30/lessons/12944',
   })
+  await saveItem<ExamEntry>('exams', { id: uid(), title: 'PCCP Java 코딩테스트', date: day(26), note: '', url: 'https://programmers.co.kr/pccp' })
 }
 
 function SettingsInner() {
@@ -51,9 +52,10 @@ function SettingsInner() {
   const jobs = useCollection<Job>('jobs').items
   const docs = useCollection<DocEntry>('docs').items
   const todos = useCollection<Todo>('todos').items
+  const exams = useCollection<ExamEntry>('exams').items
 
   const backup = () => {
-    const data: Record<CollectionName, Entity[]> = { study, jobs, docs, todos }
+    const data: Record<CollectionName, Entity[]> = { study, jobs, docs, todos, exams }
     downloadText(`job-diary-backup-${toDateStr(new Date())}.json`, JSON.stringify({ version: 1, ...data }, null, 2), 'application/json')
   }
 
@@ -71,7 +73,9 @@ function SettingsInner() {
 
       <section className="card">
         <h2>백업 / 복원</h2>
-        <p className="muted">공부 {study.length} · 공고 {jobs.length} · 문서 {docs.length} · 할 일 {todos.length}개를 JSON 한 파일로 내려받거나 복원해요.</p>
+        <p className="muted">
+          공부 {study.length} · 공고 {jobs.length} · 문서 {docs.length} · 할 일 {todos.length} · 시험 {exams.length}개를 JSON 한 파일로 내려받거나 복원해요.
+        </p>
         <div className="row wrap">
           <button className="btn primary" onClick={backup}>
             백업 내려받기

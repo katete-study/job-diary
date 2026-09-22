@@ -133,7 +133,7 @@ export interface ImportResult {
 
 /** 백업 복원: 백업 JSON의 모든 컬렉션을 다시 저장하고, 저장한 개수와 실패한 개수를 돌려준다 */
 export async function importAll(data: Partial<Record<CollectionName, Entity[]>>): Promise<ImportResult> {
-  const names: CollectionName[] = ['study', 'jobs', 'docs', 'todos']
+  const names: CollectionName[] = ['study', 'jobs', 'docs', 'todos', 'exams']
   const result: ImportResult = { saved: {}, failed: 0, firstError: '' }
   for (const n of names) {
     result.saved[n] = 0

@@ -777,6 +777,15 @@ label.check {
 .list li:last-child {
   border-bottom: 0;
 }
+.list li.clickable {
+  cursor: pointer;
+  border-radius: 8px;
+  margin: 0 -6px;
+  padding: 8px 6px;
+}
+.list li.clickable:hover {
+  background: var(--soft);
+}
 .list li a {
   color: var(--text);
 }

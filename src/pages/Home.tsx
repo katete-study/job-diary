@@ -1,10 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Empty, Icon, Locked, PageHead, Pill, StatCard } from '../components/ui'
+import { Empty, Icon, Locked, Modal, PageHead, Pill, StatCard } from '../components/ui'
 import { useAuth } from '../lib/auth'
-import { useCollection } from '../lib/store'
-import type { Job, StudyEntry, Todo } from '../lib/types'
-import { CATEGORY_ICON, CATEGORY_LABEL, daysLeft, ddayLabel, STATUS_LABEL, STATUS_TONE, toDateStr, today } from '../lib/util'
+import { useCollection, useCrud } from '../lib/store'
+import type { ExamEntry, Job, StudyEntry, Todo } from '../lib/types'
+import { CATEGORY_ICON, CATEGORY_LABEL, daysLeft, ddayLabel, STATUS_LABEL, STATUS_TONE, toDateStr, today, uid } from '../lib/util'
 
 const WEEKS = 20
 
@@ -49,6 +49,11 @@ export default function Home() {
   const { items: study } = useCollection<StudyEntry>('study')
   const { items: jobs } = useCollection<Job>('jobs')
   const { items: todos } = useCollection<Todo>('todos')
+  const { items: exams } = useCollection<ExamEntry>('exams')
+  const { save: saveExam, remove: removeExam } = useCrud<ExamEntry>('exams')
+  const [examDetail, setExamDetail] = useState<ExamEntry | null>(null)
+  const [examTitle, setExamTitle] = useState('')
+  const [examDate, setExamDate] = useState('')
 
   const counts = useMemo(() => {
     const m = new Map<string, number>()
@@ -64,6 +69,13 @@ export default function Home() {
     .sort((a, b) => a.deadline.localeCompare(b.deadline))
   const upcoming = jobs.filter((j) => j.interviewAt && (daysLeft(j.interviewAt) ?? -1) >= 0).sort((a, b) => a.interviewAt.localeCompare(b.interviewAt))
   const openTodos = todos.filter((t) => !t.done).sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'))
+  const upcomingExams = exams.filter((ex) => (daysLeft(ex.date) ?? -1) >= 0).sort((a, b) => a.date.localeCompare(b.date))
+  const addExam = () => {
+    if (!examTitle.trim() || !examDate) return
+    saveExam({ id: uid(), title: examTitle.trim(), date: examDate, note: '', url: '' })
+    setExamTitle('')
+    setExamDate('')
+  }
   const board = [...jobs]
     .sort((a, b) => Number(!!b.deadline && (daysLeft(b.deadline) ?? -1) >= 0) - Number(!!a.deadline && (daysLeft(a.deadline) ?? -1) >= 0) || (a.deadline || '9999').localeCompare(b.deadline || '9999'))
     .slice(0, 7)
@@ -200,6 +212,41 @@ export default function Home() {
                   </ul>
                 )}
               </div>
+              <div className="card">
+                <div className="card-head">
+                  <h2>
+                    <Icon name="study" size={22} /> 시험 일정
+                  </h2>
+                </div>
+                {upcomingExams.length === 0 ? (
+                  <p className="muted">예정된 시험이 없어요.</p>
+                ) : (
+                  <ul className="list">
+                    {upcomingExams.map((ex) => (
+                      <li key={ex.id} className="clickable" onClick={() => setExamDetail(ex)}>
+                        <span className={`dday ${(daysLeft(ex.date) ?? 99) <= 7 ? 'hot' : ''}`}>{ddayLabel(ex.date)}</span>
+                        <span>
+                          <b>{ex.title}</b>
+                          {ex.note && <span className="muted"> · {ex.note}</span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <form
+                  className="row wrap"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    addExam()
+                  }}
+                >
+                  <input className="grow quick" placeholder="예: PCCP Java 코딩테스트" value={examTitle} onChange={(e) => setExamTitle(e.target.value)} />
+                  <input type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} aria-label="시험 날짜" />
+                  <button className="btn primary" type="submit">
+                    추가
+                  </button>
+                </form>
+              </div>
             </div>
           </section>
         </div>
@@ -255,6 +302,68 @@ export default function Home() {
           </ul>
         )}
       </section>
+
+      {examDetail && (
+        <Modal title="시험 상세" onClose={() => setExamDetail(null)}>
+          <form
+            className="form"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              await saveExam(examDetail)
+              setExamDetail(null)
+            }}
+          >
+            <label>
+              제목
+              <input value={examDetail.title} onChange={(e) => setExamDetail({ ...examDetail, title: e.target.value })} required autoFocus />
+            </label>
+            <label>
+              날짜
+              <input type="date" value={examDetail.date} onChange={(e) => setExamDetail({ ...examDetail, date: e.target.value })} required />
+            </label>
+            <label>
+              메모
+              <input
+                value={examDetail.note}
+                onChange={(e) => setExamDetail({ ...examDetail, note: e.target.value })}
+                placeholder="예: PCCP Java, 온라인 응시"
+              />
+            </label>
+            <label>
+              링크 (URL)
+              <input
+                type="url"
+                placeholder="https://programmers.co.kr/pccp"
+                value={examDetail.url}
+                onChange={(e) => setExamDetail({ ...examDetail, url: e.target.value })}
+              />
+            </label>
+            {examDetail.url && (
+              <a className="btn" href={examDetail.url} target="_blank" rel="noopener noreferrer">
+                🔗 링크 열기
+              </a>
+            )}
+            <div className="row end">
+              <button
+                type="button"
+                className="btn danger"
+                onClick={async () => {
+                  if (confirm('이 시험 일정을 삭제할까요?')) {
+                    await removeExam(examDetail.id)
+                    setExamDetail(null)
+                  }
+                }}
+              >
+                삭제
+              </button>
+              <button type="button" className="btn" onClick={() => setExamDetail(null)}>
+                취소
+              </button>
+              <button className="btn primary">저장</button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   )
 }
