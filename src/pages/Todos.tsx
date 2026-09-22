@@ -51,58 +51,46 @@ function jobEventsOn(jobs: Job[], date: string): JobEvent[] {
 
 const EVENT_CLASS: Record<JobEvent['kind'], string> = { deadline: 'ev-deadline', interview: 'ev-interview', event: 'ev-event' }
 
-/** 링크 표시용으로 도메인만 짧게 뽑는다. 잘못된 URL이면 원문을 그대로 돌려준다. */
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '')
-  } catch {
-    return url
-  }
-}
-
 interface RowProps {
   todo: Todo
   showDue?: boolean
+  /** 주간/일간처럼 폭이 좁은 곳에서는 분류를 글자 대신 점으로 줄여서 제목이 보일 공간을 늘린다 */
+  compact?: boolean
   onToggle: (t: Todo) => void
   onRemove: (id: string) => void
   onCycleCategory: (t: Todo) => void
-  onEditUrl: (t: Todo) => void
+  onOpenDetail: (t: Todo) => void
 }
 
-/** 체크박스 + 텍스트 한 줄. 끌어서 다른 날짜/영역으로 옮길 수 있다. 분류 뱃지를 누르면 다음 분류로 바뀐다. */
-function TodoRow({ todo, showDue = false, onToggle, onRemove, onCycleCategory, onEditUrl }: RowProps) {
+/**
+ * 체크박스 + 한 줄 제목. 끌어서 다른 날짜/영역으로 옮길 수 있다.
+ * 분류 뱃지를 누르면 다음 분류로 바뀌고, 제목을 누르면 상세(수정) 창이 뜬다.
+ * 링크가 있어도 줄이 늘어나지 않도록 항상 한 줄로 잘라서 보여준다.
+ */
+function TodoRow({ todo, showDue = false, compact = false, onToggle, onRemove, onCycleCategory, onOpenDetail }: RowProps) {
   const onDragStart = (e: DragEvent) => {
     e.dataTransfer.setData('text/plain', todo.id)
     e.dataTransfer.effectAllowed = 'move'
   }
+  const catLabel = TODO_CATEGORY_LABEL[todo.category]
+  const catTone = TODO_CATEGORY_TONE[todo.category]
   return (
     <div className={`trow ${todo.done ? 'done' : ''}`} draggable onDragStart={onDragStart}>
       <input type="checkbox" checked={todo.done} onChange={() => onToggle(todo)} aria-label={`${todo.text} 완료`} />
       <button
         type="button"
-        className={`pill ${TODO_CATEGORY_TONE[todo.category]} tcat`}
+        className={compact ? `tdot ${catTone}` : `pill ${catTone} tcat`}
         onClick={() => onCycleCategory(todo)}
-        title="눌러서 분류 바꾸기"
+        aria-label={`분류: ${catLabel} (눌러서 바꾸기)`}
+        title={`${catLabel} · 눌러서 분류 바꾸기`}
       >
-        {TODO_CATEGORY_LABEL[todo.category]}
+        {compact ? '' : catLabel}
       </button>
-      <span className="ttext">
-        {todo.text}
-        {todo.url && (
-          <a className="tlink" href={todo.url} target="_blank" rel="noopener noreferrer" title={todo.url} onClick={(e) => e.stopPropagation()}>
-            🔗 {hostOf(todo.url)}
-          </a>
-        )}
-      </span>
+      <button type="button" className="ttext-btn" onClick={() => onOpenDetail(todo)} title={`${todo.text}${todo.url ? `\n${todo.url}` : ''}`}>
+        <span className="ttext">{todo.text}</span>
+        {todo.url && <span className="tlinkdot">🔗</span>}
+      </button>
       {showDue && todo.due && <span className="dday">{ddayLabel(todo.due)}</span>}
-      <button
-        className="turl"
-        onClick={() => onEditUrl(todo)}
-        aria-label={todo.url ? '링크 수정' : '링크 추가'}
-        title={todo.url ? '링크 수정/삭제' : '링크 추가'}
-      >
-        {todo.url ? '🔗' : '+🔗'}
-      </button>
       <button className="tdel" onClick={() => onRemove(todo.id)} aria-label="삭제" title="삭제">
         ✕
       </button>
@@ -147,6 +135,7 @@ function TodosInner() {
   const [category, setCategory] = useState<TodoCategory>('study')
   const [filterCat, setFilterCat] = useState<TodoCategory | 'all'>('all')
   const [bulk, setBulk] = useState<{ date: string; category: TodoCategory; text: string } | null>(null)
+  const [detail, setDetail] = useState<Todo | null>(null)
 
   const t0 = today()
   const changeView = (v: View) => {
@@ -165,12 +154,6 @@ function TodosInner() {
   }
   const toggle = (t: Todo) => save({ ...t, done: !t.done })
   const cycleCategory = (t: Todo) => save({ ...t, category: nextCategory(t.category) })
-  /** 링크를 새로 넣거나 바꾼다. 빈 값으로 확인하면 링크를 지운다 */
-  const editUrl = (t: Todo) => {
-    const next = window.prompt('링크(URL) — 지우려면 비우고 확인을 누르세요', t.url)
-    if (next === null) return
-    save({ ...t, url: next.trim() })
-  }
 
   /** 붙여넣은 여러 줄을 한 줄씩 같은 날짜/분류의 할 일로 만든다 (오늘 풀 문제 8개처럼 한 번에 등록할 때) */
   const addBulk = () => {
@@ -204,8 +187,17 @@ function TodosInner() {
   const move = (dir: number) => setCursor(shift(cursor, dir * (view === 'day' ? 1 : 7)))
   const rangeLabel = view === 'day' ? `${cursor} (${WEEKDAYS[fromStr(cursor).getDay()]})` : `${md(days[0])} – ${md(days[6])}`
 
-  const row = (t: Todo, showDue = false) => (
-    <TodoRow key={t.id} todo={t} showDue={showDue} onToggle={toggle} onRemove={remove} onCycleCategory={cycleCategory} onEditUrl={editUrl} />
+  const row = (t: Todo, showDue = false, compact = true) => (
+    <TodoRow
+      key={t.id}
+      todo={t}
+      showDue={showDue}
+      compact={compact}
+      onToggle={toggle}
+      onRemove={remove}
+      onCycleCategory={cycleCategory}
+      onOpenDetail={setDetail}
+    />
   )
 
   const backlog = (
@@ -350,7 +342,7 @@ function TodosInner() {
               {[...items]
                 .filter((t) => filterCat === 'all' || t.category === filterCat)
                 .sort((a, b) => Number(a.done) - Number(b.done) || (a.due || '9999').localeCompare(b.due || '9999') || a.createdAt - b.createdAt)
-                .map((t) => row(t, true))}
+                .map((t) => row(t, true, false))}
             </div>
           )}
         </>
@@ -401,6 +393,76 @@ function TodosInner() {
               <button className="btn primary">
                 {bulk.text.split('\n').filter((l) => l.trim()).length}개 추가
               </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {detail && (
+        <Modal title="할 일 상세" onClose={() => setDetail(null)}>
+          <form
+            className="form"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              await save(detail)
+              setDetail(null)
+            }}
+          >
+            <label>
+              제목
+              <input value={detail.text} onChange={(e) => setDetail({ ...detail, text: e.target.value })} required autoFocus />
+            </label>
+            <div className="form-row">
+              <label>
+                분류
+                <select value={detail.category} onChange={(e) => setDetail({ ...detail, category: e.target.value as TodoCategory })}>
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {TODO_CATEGORY_LABEL[c]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                기한
+                <input type="date" value={detail.due} onChange={(e) => setDetail({ ...detail, due: e.target.value })} />
+              </label>
+            </div>
+            <label>
+              링크 (URL)
+              <input
+                type="url"
+                placeholder="https://school.programmers.co.kr/..."
+                value={detail.url}
+                onChange={(e) => setDetail({ ...detail, url: e.target.value })}
+              />
+            </label>
+            {detail.url && (
+              <a className="btn" href={detail.url} target="_blank" rel="noopener noreferrer">
+                🔗 링크 열기
+              </a>
+            )}
+            <label className="row">
+              <input type="checkbox" checked={detail.done} onChange={(e) => setDetail({ ...detail, done: e.target.checked })} />
+              완료
+            </label>
+            <div className="row end">
+              <button
+                type="button"
+                className="btn danger"
+                onClick={async () => {
+                  if (confirm('이 할 일을 삭제할까요?')) {
+                    await remove(detail.id)
+                    setDetail(null)
+                  }
+                }}
+              >
+                삭제
+              </button>
+              <button type="button" className="btn" onClick={() => setDetail(null)}>
+                취소
+              </button>
+              <button className="btn primary">저장</button>
             </div>
           </form>
         </Modal>

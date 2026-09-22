@@ -1158,38 +1158,73 @@ label.check {
   cursor: pointer;
   font: inherit;
 }
-.ttext {
+/* 주간/일간처럼 좁은 칸에서 분류를 글자 대신 점 하나로 줄인 것 (제목이 보일 공간을 넓히기 위함) */
+.tdot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.tdot.green {
+  background: var(--ok);
+}
+.tdot.red {
+  background: var(--hot);
+}
+.tdot.amber {
+  background: var(--warn);
+}
+.tdot.blue {
+  background: var(--blue);
+}
+.tdot.violet {
+  background: var(--accent);
+}
+.tdot.muted {
+  background: var(--muted);
+}
+.ttext-btn {
   flex: 1;
   min-width: 0;
-  word-break: keep-all;
-  overflow-wrap: break-word;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 2px 0;
+  border-radius: 6px;
+}
+.ttext-btn:hover .ttext,
+.ttext-btn:focus-visible .ttext {
+  text-decoration: underline;
+}
+.ttext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   line-height: 1.35;
 }
 .trow.done .ttext {
   text-decoration: line-through;
   color: var(--muted);
 }
-.tlink {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: 6px;
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 0.72rem;
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
+.tlinkdot {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  opacity: 0.75;
 }
-.tlink:hover {
-  text-decoration: underline;
-}
-.tdel,
-.turl {
+.tdel {
   position: absolute;
   top: 3px;
+  right: 4px;
   border: 0;
   border-radius: 6px;
   background: var(--card);
@@ -1200,16 +1235,8 @@ label.check {
   line-height: 1;
   padding: 3px 5px;
 }
-.tdel {
-  right: 4px;
-}
-.turl {
-  right: 26px;
-}
 .trow:hover .tdel,
-.tdel:focus-visible,
-.trow:hover .turl,
-.turl:focus-visible {
+.tdel:focus-visible {
   opacity: 1;
 }
 .tlist {
@@ -1245,7 +1272,7 @@ label.check {
 }
 .week {
   display: grid;
-  grid-template-columns: repeat(7, minmax(128px, 1fr));
+  grid-template-columns: repeat(7, minmax(148px, 1fr));
   gap: 8px;
 }
 .daycol {
