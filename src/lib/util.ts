@@ -2,6 +2,20 @@ import type { DocEntry, DocType, Job, JobSource, JobStatus, StudyCategory, TodoC
 
 export const uid = () => crypto.randomUUID()
 
+const URL_RE = /https?:\/\/\S+/
+
+/**
+ * 텍스트에 섞여 있는 첫 번째 URL을 분리해낸다.
+ * "평균 구하기 https://school.programmers.co.kr/..." 처럼 제목과 링크를 한 줄에 그대로 붙여넣어도
+ * 할 일 제목과 링크가 자동으로 나뉘도록 하기 위함.
+ */
+export function extractUrl(raw: string): { text: string; url: string } {
+  const m = raw.match(URL_RE)
+  if (!m || m.index === undefined) return { text: raw.trim(), url: '' }
+  const text = (raw.slice(0, m.index) + raw.slice(m.index + m[0].length)).trim()
+  return { text, url: m[0] }
+}
+
 /** 로컬 시간 기준 YYYY-MM-DD */
 export function toDateStr(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')

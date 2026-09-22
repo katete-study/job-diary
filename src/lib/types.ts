@@ -69,6 +69,8 @@ export interface Todo extends Entity {
   /** YYYY-MM-DD, 없으면 빈 문자열 */
   due: string
   category: TodoCategory
+  /** 문제/공고 등 참고 링크. 없으면 빈 문자열 */
+  url: string
 }
 
 export interface AppUser {

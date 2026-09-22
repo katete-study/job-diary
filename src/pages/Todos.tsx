@@ -2,7 +2,7 @@ import { useState, type DragEvent } from 'react'
 import { Empty, Modal, PageHead, PrivateGate } from '../components/ui'
 import { useCollection, useCrud } from '../lib/store'
 import type { Job, Todo, TodoCategory } from '../lib/types'
-import { ddayLabel, toDateStr, today, TODO_CATEGORY_LABEL, TODO_CATEGORY_TONE, uid } from '../lib/util'
+import { ddayLabel, extractUrl, toDateStr, today, TODO_CATEGORY_LABEL, TODO_CATEGORY_TONE, uid } from '../lib/util'
 
 type View = 'week' | 'day' | 'list'
 
@@ -51,16 +51,26 @@ function jobEventsOn(jobs: Job[], date: string): JobEvent[] {
 
 const EVENT_CLASS: Record<JobEvent['kind'], string> = { deadline: 'ev-deadline', interview: 'ev-interview', event: 'ev-event' }
 
+/** 링크 표시용으로 도메인만 짧게 뽑는다. 잘못된 URL이면 원문을 그대로 돌려준다. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
 interface RowProps {
   todo: Todo
   showDue?: boolean
   onToggle: (t: Todo) => void
   onRemove: (id: string) => void
   onCycleCategory: (t: Todo) => void
+  onEditUrl: (t: Todo) => void
 }
 
 /** 체크박스 + 텍스트 한 줄. 끌어서 다른 날짜/영역으로 옮길 수 있다. 분류 뱃지를 누르면 다음 분류로 바뀐다. */
-function TodoRow({ todo, showDue = false, onToggle, onRemove, onCycleCategory }: RowProps) {
+function TodoRow({ todo, showDue = false, onToggle, onRemove, onCycleCategory, onEditUrl }: RowProps) {
   const onDragStart = (e: DragEvent) => {
     e.dataTransfer.setData('text/plain', todo.id)
     e.dataTransfer.effectAllowed = 'move'
@@ -76,8 +86,23 @@ function TodoRow({ todo, showDue = false, onToggle, onRemove, onCycleCategory }:
       >
         {TODO_CATEGORY_LABEL[todo.category]}
       </button>
-      <span className="ttext">{todo.text}</span>
+      <span className="ttext">
+        {todo.text}
+        {todo.url && (
+          <a className="tlink" href={todo.url} target="_blank" rel="noopener noreferrer" title={todo.url} onClick={(e) => e.stopPropagation()}>
+            🔗 {hostOf(todo.url)}
+          </a>
+        )}
+      </span>
       {showDue && todo.due && <span className="dday">{ddayLabel(todo.due)}</span>}
+      <button
+        className="turl"
+        onClick={() => onEditUrl(todo)}
+        aria-label={todo.url ? '링크 수정' : '링크 추가'}
+        title={todo.url ? '링크 수정/삭제' : '링크 추가'}
+      >
+        {todo.url ? '🔗' : '+🔗'}
+      </button>
       <button className="tdel" onClick={() => onRemove(todo.id)} aria-label="삭제" title="삭제">
         ✕
       </button>
@@ -133,9 +158,19 @@ function TodosInner() {
     }
   }
 
-  const add = (label: string, date: string, cat: TodoCategory = 'study') => save({ id: uid(), text: label, done: false, due: date, category: cat })
+  /** label 에 URL이 섞여 있으면(붙여넣기) 자동으로 분리해서 저장한다 */
+  const add = (label: string, date: string, cat: TodoCategory = 'study') => {
+    const { text: parsedText, url } = extractUrl(label)
+    save({ id: uid(), text: parsedText, done: false, due: date, category: cat, url })
+  }
   const toggle = (t: Todo) => save({ ...t, done: !t.done })
   const cycleCategory = (t: Todo) => save({ ...t, category: nextCategory(t.category) })
+  /** 링크를 새로 넣거나 바꾼다. 빈 값으로 확인하면 링크를 지운다 */
+  const editUrl = (t: Todo) => {
+    const next = window.prompt('링크(URL) — 지우려면 비우고 확인을 누르세요', t.url)
+    if (next === null) return
+    save({ ...t, url: next.trim() })
+  }
 
   /** 붙여넣은 여러 줄을 한 줄씩 같은 날짜/분류의 할 일로 만든다 (오늘 풀 문제 8개처럼 한 번에 등록할 때) */
   const addBulk = () => {
@@ -170,7 +205,7 @@ function TodosInner() {
   const rangeLabel = view === 'day' ? `${cursor} (${WEEKDAYS[fromStr(cursor).getDay()]})` : `${md(days[0])} – ${md(days[6])}`
 
   const row = (t: Todo, showDue = false) => (
-    <TodoRow key={t.id} todo={t} showDue={showDue} onToggle={toggle} onRemove={remove} onCycleCategory={cycleCategory} />
+    <TodoRow key={t.id} todo={t} showDue={showDue} onToggle={toggle} onRemove={remove} onCycleCategory={cycleCategory} onEditUrl={editUrl} />
   )
 
   const backlog = (
@@ -330,7 +365,9 @@ function TodosInner() {
               addBulk()
             }}
           >
-            <p className="muted small">오늘 풀 문제 목록처럼 한 줄에 하나씩 붙여넣으면 전부 같은 날짜·분류의 할 일로 등록돼요.</p>
+            <p className="muted small">
+              오늘 풀 문제 목록처럼 한 줄에 하나씩 붙여넣으면 전부 같은 날짜·분류의 할 일로 등록돼요. 줄 끝에 링크를 같이 붙여넣으면 자동으로 분리돼요.
+            </p>
             <div className="form-row">
               <label>
                 날짜
@@ -354,7 +391,7 @@ function TodosInner() {
                 autoFocus
                 value={bulk.text}
                 onChange={(e) => setBulk({ ...bulk, text: e.target.value })}
-                placeholder={'예)\n평균 구하기\n자릿수 더하기\n폰켓몬\n완주하지 못한 선수'}
+                placeholder={'예)\n평균 구하기 https://school.programmers.co.kr/learn/courses/30/lessons/12944\n자릿수 더하기\n폰켓몬'}
               />
             </label>
             <div className="row end">
