@@ -20,10 +20,10 @@ async function seedDemo() {
   ]
   for (const j of jobs) await saveItem<Job>('jobs', j)
   const study: Omit<StudyEntry, 'createdAt' | 'updatedAt'>[] = [
-    { id: uid(), date: day(0), category: 'devstudy', title: 'Compose 상태 호이스팅', content: '## 오늘 배운 것\n- `remember` vs `rememberSaveable`\n- 상태를 **위로** 끌어올리기\n\n```kotlin\nvar count by remember { mutableStateOf(0) }\n```', tags: ['compose', 'android'] },
-    { id: uid(), date: day(-1), category: 'study', title: '자료구조: 해시 테이블', content: '충돌 해결: 체이닝, 개방 주소법', tags: ['cs'] },
-    { id: uid(), date: day(-2), category: 'project', title: 'katete-study 스터디 정리', content: 'Spring 입문 실습 복습', tags: ['spring'] },
-    { id: uid(), date: day(-4), category: 'stack', title: 'Kotlin Coroutines 정리', content: 'Flow / StateFlow 차이', tags: ['kotlin'] },
+    { id: uid(), date: day(0), category: 'devstudy', title: 'Compose 상태 호이스팅', content: '## 오늘 배운 것\n- `remember` vs `rememberSaveable`\n- 상태를 **위로** 끌어올리기\n\n```kotlin\nvar count by remember { mutableStateOf(0) }\n```', tags: ['compose', 'android'], sourceTodoId: '' },
+    { id: uid(), date: day(-1), category: 'study', title: '자료구조: 해시 테이블', content: '충돌 해결: 체이닝, 개방 주소법', tags: ['cs'], sourceTodoId: '' },
+    { id: uid(), date: day(-2), category: 'project', title: 'katete-study 스터디 정리', content: 'Spring 입문 실습 복습', tags: ['spring'], sourceTodoId: '' },
+    { id: uid(), date: day(-4), category: 'stack', title: 'Kotlin Coroutines 정리', content: 'Flow / StateFlow 차이', tags: ['kotlin'], sourceTodoId: '' },
   ]
   for (const s of study) await saveItem<StudyEntry>('study', s)
   const docs: Omit<DocEntry, 'createdAt' | 'updatedAt'>[] = [

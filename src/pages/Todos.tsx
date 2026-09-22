@@ -1,7 +1,7 @@
 import { useState, type DragEvent } from 'react'
 import { Empty, Modal, PageHead, PrivateGate } from '../components/ui'
 import { useCollection, useCrud } from '../lib/store'
-import type { Job, Todo, TodoCategory } from '../lib/types'
+import type { Job, StudyEntry, Todo, TodoCategory } from '../lib/types'
 import { ddayLabel, extractUrl, toDateStr, today, TODO_CATEGORY_LABEL, TODO_CATEGORY_TONE, uid } from '../lib/util'
 
 type View = 'week' | 'day' | 'list'
@@ -120,7 +120,9 @@ function QuickAdd({ placeholder = '+ 할 일 추가', onAdd }: { placeholder?: s
 function TodosInner() {
   const { items, ready } = useCollection<Todo>('todos')
   const { items: jobs } = useCollection<Job>('jobs')
+  const { items: studyEntries } = useCollection<StudyEntry>('study')
   const { save, remove } = useCrud<Todo>('todos')
+  const { save: saveStudy, remove: removeStudy } = useCrud<StudyEntry>('study')
   const [view, setView] = useState<View>(() => {
     try {
       return (localStorage.getItem(VIEW_KEY) as View) || 'week'
@@ -152,8 +154,33 @@ function TodosInner() {
     const { text: parsedText, url } = extractUrl(label)
     save({ id: uid(), text: parsedText, done: false, due: date, category: cat, url })
   }
-  const toggle = (t: Todo) => save({ ...t, done: !t.done })
+  /**
+   * "공부" 분류 할 일을 완료로 체크하면 공부 기록에 자동으로 기록을 남기고(직접 안 적어도 됨),
+   * 체크를 다시 풀면 그 자동 기록을 지운다. 이미 기록이 있으면 중복 생성하지 않는다.
+   */
+  const syncStudyEntry = (t: Todo, done: boolean) => {
+    if (t.category !== 'study') return
+    if (done) {
+      if (studyEntries.some((s) => s.sourceTodoId === t.id)) return
+      const content = [`오늘 **${t.text}** 을(를) 풀었어요.`, t.url ? `\n- 문제 링크: ${t.url}` : '']
+        .filter(Boolean)
+        .join('\n')
+      saveStudy({ id: uid(), date: today(), category: 'study', title: t.text, content, tags: ['자동기록'], sourceTodoId: t.id })
+    } else {
+      studyEntries.filter((s) => s.sourceTodoId === t.id).forEach((s) => removeStudy(s.id))
+    }
+  }
+  const toggle = (t: Todo) => {
+    const done = !t.done
+    save({ ...t, done })
+    syncStudyEntry(t, done)
+  }
   const cycleCategory = (t: Todo) => save({ ...t, category: nextCategory(t.category) })
+  /** 할 일을 지울 때, 거기서 자동 생성된 공부 기록이 있으면 같이 지운다 */
+  const removeTodo = (id: string) => {
+    remove(id)
+    studyEntries.filter((s) => s.sourceTodoId === id).forEach((s) => removeStudy(s.id))
+  }
 
   /** 붙여넣은 여러 줄을 한 줄씩 같은 날짜/분류의 할 일로 만든다 (오늘 풀 문제 8개처럼 한 번에 등록할 때) */
   const addBulk = () => {
@@ -194,7 +221,7 @@ function TodosInner() {
       showDue={showDue}
       compact={compact}
       onToggle={toggle}
-      onRemove={remove}
+      onRemove={removeTodo}
       onCycleCategory={cycleCategory}
       onOpenDetail={setDetail}
     />
@@ -404,7 +431,9 @@ function TodosInner() {
             className="form"
             onSubmit={async (e) => {
               e.preventDefault()
+              const prev = items.find((x) => x.id === detail.id)
               await save(detail)
+              if (!prev || prev.done !== detail.done) syncStudyEntry(detail, detail.done)
               setDetail(null)
             }}
           >
@@ -452,7 +481,7 @@ function TodosInner() {
                 className="btn danger"
                 onClick={async () => {
                   if (confirm('이 할 일을 삭제할까요?')) {
-                    await remove(detail.id)
+                    removeTodo(detail.id)
                     setDetail(null)
                   }
                 }}

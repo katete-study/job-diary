@@ -18,6 +18,8 @@ export interface StudyEntry extends Entity {
   /** 마크다운 */
   content: string
   tags: string[]
+  /** "공부" 분류 할 일을 완료해서 자동 생성된 기록이면 그 할 일의 id, 직접 쓴 기록이면 빈 문자열 */
+  sourceTodoId: string
 }
 
 export type JobSource = 'saramin' | 'jobkorea' | 'wanted' | 'other'

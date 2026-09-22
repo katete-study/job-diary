@@ -9,7 +9,7 @@ import { CATEGORY_ICON, CATEGORY_LABEL, today, uid } from '../lib/util'
 const CATEGORIES = Object.keys(CATEGORY_LABEL) as StudyCategory[]
 
 function blank(): Omit<StudyEntry, 'createdAt' | 'updatedAt'> {
-  return { id: uid(), date: today(), category: 'study', title: '', content: '', tags: [] }
+  return { id: uid(), date: today(), category: 'study', title: '', content: '', tags: [], sourceTodoId: '' }
 }
 
 /** 공개 공부 기록. 누구나 읽고, 소유자만 작성/수정/삭제한다. */
