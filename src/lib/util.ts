@@ -1,4 +1,4 @@
-import type { DocEntry, DocType, Job, JobSource, JobStatus, StudyCategory } from './types'
+import type { DocEntry, DocType, Job, JobSource, JobStatus, StudyCategory, TodoCategory } from './types'
 
 export const uid = () => crypto.randomUUID()
 
@@ -99,6 +99,19 @@ export const DOC_ICON: Record<DocType, string> = {
   coverletter: 'coverletter',
   portfolio: 'project',
   claude: 'dev',
+}
+
+export const TODO_CATEGORY_LABEL: Record<TodoCategory, string> = {
+  study: '공부',
+  apply: '지원',
+  life: '기타',
+}
+
+/** 할 일 분류별 뱃지 색상 톤 (CSS .pill.<tone>) */
+export const TODO_CATEGORY_TONE: Record<TodoCategory, string> = {
+  study: 'blue',
+  apply: 'violet',
+  life: 'muted',
 }
 
 /** Claude에게 붙여 넣을 "내 배경 자료" 마크다운을 만든다 */

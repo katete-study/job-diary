@@ -31,8 +31,8 @@ async function seedDemo() {
     { id: uid(), type: 'coverletter', title: '당근 지원 자소서 초안', content: '## 지원 동기\n동네 기반 서비스에 관심이 많아…', jobId: jobs[0].id, date: day(0), includeInContext: true },
   ]
   for (const d of docs) await saveItem<DocEntry>('docs', d)
-  await saveItem<Todo>('todos', { id: uid(), text: '토스 코딩테스트 대비', done: false, due: day(3) })
-  await saveItem<Todo>('todos', { id: uid(), text: '포트폴리오 README 정리', done: true, due: '' })
+  await saveItem<Todo>('todos', { id: uid(), text: '토스 코딩테스트 대비', done: false, due: day(3), category: 'apply' })
+  await saveItem<Todo>('todos', { id: uid(), text: '포트폴리오 README 정리', done: true, due: '', category: 'life' })
 }
 
 function SettingsInner() {

@@ -51,7 +51,7 @@ const SAMPLE_DOCS: DocEntry[] = (['coverletter', 'claude', 'resume', 'portfolio'
   includeInContext: true,
 }))
 
-const SAMPLE_TODOS: Todo[] = [3, 5, 8, 12].map((n, i) => ({ ...base, id: `sample-todo-${i}`, text: '샘플 할 일', done: false, due: day(n) }))
+const SAMPLE_TODOS: Todo[] = [3, 5, 8, 12].map((n, i) => ({ ...base, id: `sample-todo-${i}`, text: '샘플 할 일', done: false, due: day(n), category: 'study' }))
 
 export const SAMPLE: Record<Exclude<CollectionName, 'study'>, Entity[]> = {
   jobs: SAMPLE_JOBS,

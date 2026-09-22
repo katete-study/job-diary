@@ -60,11 +60,15 @@ export interface DocEntry extends Entity {
   includeInContext: boolean
 }
 
+/** 공부, 지원 준비, 기타 개인 용무 - 할 일이 많아졌을 때 한눈에 구분하기 위한 분류 */
+export type TodoCategory = 'study' | 'apply' | 'life'
+
 export interface Todo extends Entity {
   text: string
   done: boolean
   /** YYYY-MM-DD, 없으면 빈 문자열 */
   due: string
+  category: TodoCategory
 }
 
 export interface AppUser {

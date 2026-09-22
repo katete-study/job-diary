@@ -1,14 +1,17 @@
 import { useState, type DragEvent } from 'react'
-import { Empty, PageHead, PrivateGate } from '../components/ui'
+import { Empty, Modal, PageHead, PrivateGate } from '../components/ui'
 import { useCollection, useCrud } from '../lib/store'
-import type { Job, Todo } from '../lib/types'
-import { ddayLabel, toDateStr, today, uid } from '../lib/util'
+import type { Job, Todo, TodoCategory } from '../lib/types'
+import { ddayLabel, toDateStr, today, TODO_CATEGORY_LABEL, TODO_CATEGORY_TONE, uid } from '../lib/util'
 
 type View = 'week' | 'day' | 'list'
 
 const VIEW_KEY = 'jd:todo-view'
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 const VIEW_LABEL: Record<View, string> = { week: '주간', day: '일간', list: '목록' }
+const CATEGORIES = Object.keys(TODO_CATEGORY_LABEL) as TodoCategory[]
+/** 카테고리 뱃지를 누르면 이 순서로 돌아간다 */
+const nextCategory = (c: TodoCategory): TodoCategory => CATEGORIES[(CATEGORIES.indexOf(c) + 1) % CATEGORIES.length]
 
 const fromStr = (s: string) => {
   const [y, m, d] = s.split('-').map(Number)
@@ -53,10 +56,11 @@ interface RowProps {
   showDue?: boolean
   onToggle: (t: Todo) => void
   onRemove: (id: string) => void
+  onCycleCategory: (t: Todo) => void
 }
 
-/** 체크박스 + 텍스트 한 줄. 끌어서 다른 날짜/영역으로 옮길 수 있다. */
-function TodoRow({ todo, showDue = false, onToggle, onRemove }: RowProps) {
+/** 체크박스 + 텍스트 한 줄. 끌어서 다른 날짜/영역으로 옮길 수 있다. 분류 뱃지를 누르면 다음 분류로 바뀐다. */
+function TodoRow({ todo, showDue = false, onToggle, onRemove, onCycleCategory }: RowProps) {
   const onDragStart = (e: DragEvent) => {
     e.dataTransfer.setData('text/plain', todo.id)
     e.dataTransfer.effectAllowed = 'move'
@@ -64,6 +68,14 @@ function TodoRow({ todo, showDue = false, onToggle, onRemove }: RowProps) {
   return (
     <div className={`trow ${todo.done ? 'done' : ''}`} draggable onDragStart={onDragStart}>
       <input type="checkbox" checked={todo.done} onChange={() => onToggle(todo)} aria-label={`${todo.text} 완료`} />
+      <button
+        type="button"
+        className={`pill ${TODO_CATEGORY_TONE[todo.category]} tcat`}
+        onClick={() => onCycleCategory(todo)}
+        title="눌러서 분류 바꾸기"
+      >
+        {TODO_CATEGORY_LABEL[todo.category]}
+      </button>
       <span className="ttext">{todo.text}</span>
       {showDue && todo.due && <span className="dday">{ddayLabel(todo.due)}</span>}
       <button className="tdel" onClick={() => onRemove(todo.id)} aria-label="삭제" title="삭제">
@@ -107,6 +119,9 @@ function TodosInner() {
   const [over, setOver] = useState('')
   const [text, setText] = useState('')
   const [due, setDue] = useState('')
+  const [category, setCategory] = useState<TodoCategory>('study')
+  const [filterCat, setFilterCat] = useState<TodoCategory | 'all'>('all')
+  const [bulk, setBulk] = useState<{ date: string; category: TodoCategory; text: string } | null>(null)
 
   const t0 = today()
   const changeView = (v: View) => {
@@ -118,8 +133,17 @@ function TodosInner() {
     }
   }
 
-  const add = (label: string, date: string) => save({ id: uid(), text: label, done: false, due: date })
+  const add = (label: string, date: string, cat: TodoCategory = 'study') => save({ id: uid(), text: label, done: false, due: date, category: cat })
   const toggle = (t: Todo) => save({ ...t, done: !t.done })
+  const cycleCategory = (t: Todo) => save({ ...t, category: nextCategory(t.category) })
+
+  /** 붙여넣은 여러 줄을 한 줄씩 같은 날짜/분류의 할 일로 만든다 (오늘 풀 문제 8개처럼 한 번에 등록할 때) */
+  const addBulk = () => {
+    if (!bulk) return
+    const lines = bulk.text.split('\n').map((l) => l.trim()).filter(Boolean)
+    lines.forEach((line) => add(line, bulk.date, bulk.category))
+    setBulk(null)
+  }
   const todosOn = (date: string) => items.filter((t) => t.due === date).sort((a, b) => Number(a.done) - Number(b.done) || a.createdAt - b.createdAt)
   const undated = items.filter((t) => !t.due && !t.done)
   const overdue = items.filter((t) => t.due && t.due < t0 && !t.done).sort((a, b) => a.due.localeCompare(b.due))
@@ -145,7 +169,9 @@ function TodosInner() {
   const move = (dir: number) => setCursor(shift(cursor, dir * (view === 'day' ? 1 : 7)))
   const rangeLabel = view === 'day' ? `${cursor} (${WEEKDAYS[fromStr(cursor).getDay()]})` : `${md(days[0])} – ${md(days[6])}`
 
-  const row = (t: Todo, showDue = false) => <TodoRow key={t.id} todo={t} showDue={showDue} onToggle={toggle} onRemove={remove} />
+  const row = (t: Todo, showDue = false) => (
+    <TodoRow key={t.id} todo={t} showDue={showDue} onToggle={toggle} onRemove={remove} onCycleCategory={cycleCategory} />
+  )
 
   const backlog = (
     <div className="backlog">
@@ -185,6 +211,9 @@ function TodosInner() {
             </button>
           </>
         )}
+        <button className="btn primary" onClick={() => setBulk({ date: view === 'list' ? t0 : cursor, category: 'study', text: '' })}>
+          + 여러 개 한번에
+        </button>
       </PageHead>
 
       {!ready ? (
@@ -251,25 +280,93 @@ function TodosInner() {
             onSubmit={async (e) => {
               e.preventDefault()
               if (!text.trim()) return
-              await add(text.trim(), due)
+              await add(text.trim(), due, category)
               setText('')
               setDue('')
             }}
           >
             <input className="grow" placeholder="예: 카카오 코딩테스트 풀어보기" value={text} onChange={(e) => setText(e.target.value)} />
+            <select value={category} onChange={(e) => setCategory(e.target.value as TodoCategory)} aria-label="분류">
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {TODO_CATEGORY_LABEL[c]}
+                </option>
+              ))}
+            </select>
             <input type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label="기한" />
             <button className="btn primary">추가</button>
           </form>
+
+          <div className="chips">
+            <button className={`chip ${filterCat === 'all' ? 'on' : ''}`} onClick={() => setFilterCat('all')}>
+              전체 {items.length}
+            </button>
+            {CATEGORIES.map((c) => (
+              <button key={c} className={`chip ${filterCat === c ? 'on' : ''}`} onClick={() => setFilterCat(c)}>
+                {TODO_CATEGORY_LABEL[c]} {items.filter((t) => t.category === c).length}
+              </button>
+            ))}
+          </div>
+
           {items.length === 0 ? (
             <Empty icon="fighting">할 일이 없어요. 오늘도 화이팅!</Empty>
           ) : (
             <div className="card tlist">
               {[...items]
+                .filter((t) => filterCat === 'all' || t.category === filterCat)
                 .sort((a, b) => Number(a.done) - Number(b.done) || (a.due || '9999').localeCompare(b.due || '9999') || a.createdAt - b.createdAt)
                 .map((t) => row(t, true))}
             </div>
           )}
         </>
+      )}
+
+      {bulk && (
+        <Modal title="여러 개 한번에 추가" onClose={() => setBulk(null)}>
+          <form
+            className="form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              addBulk()
+            }}
+          >
+            <p className="muted small">오늘 풀 문제 목록처럼 한 줄에 하나씩 붙여넣으면 전부 같은 날짜·분류의 할 일로 등록돼요.</p>
+            <div className="form-row">
+              <label>
+                날짜
+                <input type="date" value={bulk.date} onChange={(e) => setBulk({ ...bulk, date: e.target.value })} />
+              </label>
+              <label>
+                분류
+                <select value={bulk.category} onChange={(e) => setBulk({ ...bulk, category: e.target.value as TodoCategory })}>
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {TODO_CATEGORY_LABEL[c]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label>
+              할 일 목록 (한 줄에 하나)
+              <textarea
+                rows={10}
+                autoFocus
+                value={bulk.text}
+                onChange={(e) => setBulk({ ...bulk, text: e.target.value })}
+                placeholder={'예)\n평균 구하기\n자릿수 더하기\n폰켓몬\n완주하지 못한 선수'}
+              />
+            </label>
+            <div className="row end">
+              <button type="button" className="btn" onClick={() => setBulk(null)}>
+                취소
+              </button>
+              <button className="btn primary">
+                {bulk.text.split('\n').filter((l) => l.trim()).length}개 추가
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   )
